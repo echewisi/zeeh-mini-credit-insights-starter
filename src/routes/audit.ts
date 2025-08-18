@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
-import { requireRole } from '../middleware/auth.js';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { requireRole } from '../middleware/auth';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

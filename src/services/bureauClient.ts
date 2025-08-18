@@ -1,7 +1,7 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { AuditLogService } from './auditLogService.js';
+import { AuditLogService } from './auditLogService';
 
 const prisma = new PrismaClient();
 

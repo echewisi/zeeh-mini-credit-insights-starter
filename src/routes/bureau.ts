@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
-import { requireRole } from '../middleware/auth.js';
-import { BureauClient } from '../services/bureauClient.js';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { requireRole } from '../middleware/auth';
+import { BureauClient } from '../services/bureauClient';
 
 export const bureauRouter = Router();
 

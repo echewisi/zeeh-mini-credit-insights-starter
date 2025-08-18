@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { AuditLogService } from './auditLogService.js';
+import { AuditLogService } from './auditLogService';
 
 const prisma = new PrismaClient();
 

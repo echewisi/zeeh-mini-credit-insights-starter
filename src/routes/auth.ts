@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { AuthService } from '../services/authService.js';
-import { requireRole } from '../middleware/auth.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { AuthService } from '../services/authService';
+import { requireRole } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
 export const authRouter = Router();
 

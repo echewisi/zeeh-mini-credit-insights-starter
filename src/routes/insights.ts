@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
-import { requireRole } from '../middleware/auth.js';
-import { InsightsService } from '../services/insightsService.js';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { requireRole } from '../middleware/auth';
+import { InsightsService } from '../services/insightsService';
 
 export const insightsRouter = Router();
 

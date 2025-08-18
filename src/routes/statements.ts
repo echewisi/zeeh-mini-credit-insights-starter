@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
-import { requireRole } from '../middleware/auth.js';
-import { StatementService } from '../services/statementService.js';
-import { upload } from '../utils/upload.js';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { requireRole } from '../middleware/auth';
+import { StatementService } from '../services/statementService';
+import { upload } from '../utils/upload';
 
 
 export const statementsRouter = Router();

@@ -1,7 +1,7 @@
 # Multi-stage build
 FROM node:20-alpine as base
 WORKDIR /app
-COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* /app/ 2>/dev/null || true
+COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./ 
 RUN npm i --silent
 COPY . .
 RUN npm run build

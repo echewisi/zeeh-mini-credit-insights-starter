@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String
+  createdAt    DateTime @default(now())
+  statements   Statement[]
+  auditLogs    AuditLog[]
+}
+
+model Statement {
+  id                String   @id @default(cuid())
+  userId            String
+  sourceLabel       String?
+  uploadedAt        DateTime @default(now())
+  rowCount          Int      @default(0)
+  parseSuccessRate  Float    @default(0)
+  user              User     @relation(fields: [userId], references: [id])
+  transactions      Transaction[]
+  insights          Insight[]
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  statementId  String
+  date         DateTime
+  description  String
+  amount       Float
+  balance      Float?
+  rawRowJson   Json?
+  statement    Statement @relation(fields: [statementId], references: [id])
+  @@index([statementId])
+}
+
+model Insight {
+  id                 String   @id @default(cuid())
+  statementId        String 
+  monthlyIncomeAvg   Float?
+  inflow3m           Float?
+  outflow3m          Float?
+  net3m              Float?
+  spendBreakdownJson Json?
+  riskFlagsJson      Json?
+  createdAt          DateTime @default(now())
+  statement          Statement @relation(fields: [statementId], references: [id])
+}
+
+model BureauReport {
+  id           String   @id @default(cuid())
+  bvn          String   @unique
+  personName   String?
+  dob          String?
+  score        Int?
+  riskBand     String?
+  enquiries6m  Int?
+  defaults     Int?
+  openLoans    Int?
+  tradeLines   Json?
+  requestedAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  targetType  String?
+  targetId    String?
+  metaJson    Json?
+  createdAt   DateTime @default(now())
+  actorUser   User?    @relation(fields: [actorUserId], references: [id])
+}

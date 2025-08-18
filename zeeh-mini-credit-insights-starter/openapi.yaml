@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Mini Credit Insights API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      summary: Liveness check
+      responses:
+        '200':
+          description: OK
+  /auth/register:
+    post:
+      summary: Register user
+      responses:
+        '201':
+          description: Created
+  /auth/login:
+    post:
+      summary: Login
+      responses:
+        '200':
+          description: OK
+  /statements/upload:
+    post:
+      summary: Upload CSV statement
+      responses:
+        '200':
+          description: OK
+  /statements/{id}:
+    get:
+      summary: Get statement by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+  /insights/run:
+    post:
+      summary: Run insights on a statement
+      responses:
+        '200':
+          description: OK
+  /insights/{id}:
+    get:
+      summary: Get insights by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+  /bureau/check:
+    post:
+      summary: Perform a bureau check (mock)
+      responses:
+        '200':
+          description: OK
+  /bureau/report/{bvn}:
+    get:
+      summary: Get bureau report by BVN
+      parameters:
+        - name: bvn
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+  /audit/logs:
+    get:
+      summary: Get paginated audit logs with filtering
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 100 }
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: targetType
+          in: query
+          schema: { type: string }
+        - name: actorUserId
+          in: query
+          schema: { type: string }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+  /audit/logs/{id}:
+    get:
+      summary: Get specific audit log by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+  /audit/actions:
+    get:
+      summary: Get list of unique audit actions
+      responses:
+        '200':
+          description: OK
+  /audit/target-types:
+    get:
+      summary: Get list of unique audit target types
+      responses:
+        '200':
+          description: OK
+  /audit/summary:
+    get:
+      summary: Get audit summary statistics
+      responses:
+        '200':
+          description: OK

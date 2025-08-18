@@ -1,0 +1,35 @@
+date,description,amount,balance
+2024-01-01,Salary Payment - ABC Corp,500000,500000
+2024-01-02,Grocery Store - Walmart,-25000,475000
+2024-01-03,Uber Ride - Transport,-1500,473500
+2024-01-04,Amazon Shopping - Electronics,-45000,428500
+2024-01-05,Restaurant - Fine Dining,-8000,420500
+2024-01-06,Utility Bill - Electricity,-15000,405500
+2024-01-07,Salary Payment - ABC Corp,500000,905500
+2024-01-08,Gas Station - Fuel,-5000,900500
+2024-01-09,Entertainment - Movie Theater,-12000,888500
+2024-01-10,Transport - Bus Fare,-3000,885500
+2024-01-11,Online Shopping - Clothing,-35000,850500
+2024-01-12,Restaurant - Fast Food,-2000,848500
+2024-01-13,Pharmacy - Medicine,-5000,843500
+2024-01-14,Salary Payment - ABC Corp,500000,1343500
+2024-01-15,Grocery Store - Supermarket,-30000,1313500
+2024-01-16,Entertainment - Gaming,-8000,1305500
+2024-01-17,Transport - Taxi,-2500,1303000
+2024-01-18,Online Shopping - Books,-15000,1288000
+2024-01-19,Restaurant - Coffee Shop,-1500,1286500
+2024-01-20,Utility Bill - Water,-8000,1278500
+2024-01-21,Salary Payment - ABC Corp,500000,1778500
+2024-01-22,Grocery Store - Local Market,-18000,1760500
+2024-01-23,Entertainment - Concert,-25000,1735500
+2024-01-24,Transport - Train,-4000,1731500
+2024-01-25,Online Shopping - Home Goods,-22000,1709500
+2024-01-26,Restaurant - Pizza,-3000,1706500
+2024-01-27,Pharmacy - Vitamins,-3000,1703500
+2024-01-28,Salary Payment - ABC Corp,500000,2203500
+2024-01-29,Grocery Store - Organic,-35000,2168500
+2024-01-30,Entertainment - Sports Event,-15000,2153500
+2024-01-31,Transport - Car Service,-6000,2147500
+
+
+

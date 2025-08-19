@@ -16,13 +16,18 @@ describe('Credit Insights API - Happy Path Integration', () => {
   beforeAll(async () => {
     app = createServer();
     
-    // Clean up test data
-    await prisma.auditLog.deleteMany();
-    await prisma.insight.deleteMany();
-    await prisma.transaction.deleteMany();
-    await prisma.statement.deleteMany();
-    await prisma.bureauReport.deleteMany();
-    await prisma.user.deleteMany();
+    // Clean up test data - handle case where tables might not exist
+    try {
+      await prisma.auditLog.deleteMany();
+      await prisma.insight.deleteMany();
+      await prisma.transaction.deleteMany();
+      await prisma.statement.deleteMany();
+      await prisma.bureauReport.deleteMany();
+      await prisma.user.deleteMany();
+    } catch (error) {
+      // Tables might not exist yet, that's okay
+      console.log('Tables not ready for cleanup, continuing...');
+    }
   });
 
   afterAll(async () => {

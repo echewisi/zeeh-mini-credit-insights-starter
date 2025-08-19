@@ -93,12 +93,17 @@ export class TestHelpers {
    * Clean up test data
    */
   static async cleanupTestData(): Promise<void> {
-    await prisma.auditLog.deleteMany();
-    await prisma.insight.deleteMany();
-    await prisma.transaction.deleteMany();
-    await prisma.statement.deleteMany();
-    await prisma.bureauReport.deleteMany();
-    await prisma.user.deleteMany();
+    try {
+      await prisma.auditLog.deleteMany();
+      await prisma.insight.deleteMany();
+      await prisma.transaction.deleteMany();
+      await prisma.statement.deleteMany();
+      await prisma.bureauReport.deleteMany();
+      await prisma.user.deleteMany();
+    } catch (error) {
+      // Tables might not exist yet, that's okay
+      console.log('Tables not ready for cleanup, continuing...');
+    }
   }
 
   /**

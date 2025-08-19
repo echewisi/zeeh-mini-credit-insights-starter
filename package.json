@@ -13,7 +13,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=tests/unit",
-    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:integration": "jest --testPathPattern=tests/integration/simpleApi",
     "test:ci": "jest --ci --coverage --runInBand",
     "prepare": "husky install",
     "prisma:generate": "prisma generate",

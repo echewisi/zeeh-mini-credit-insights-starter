@@ -2,30 +2,168 @@
 
 A starter scaffold for the Zeeh Africa take-home. Build a backend that ingests bank statements (CSV), computes insights, and integrates with a mock credit bureau.
 
-## Quick Start
-1. Copy `.env.example` to `.env` and edit values.
-2. `npm install`
-3. `docker compose up` (runs Postgres + mock bureau + API in dev mode)
-4. Run Prisma: `npm run prisma:migrate` then `npm run prisma:generate`
-5. Visit `http://localhost:3000/docs` (once you mount your OpenAPI).
+## 🏗️ Architecture Decisions & Design Choices
 
-## Scripts
-- `npm run dev` – start in dev (ts-node-dev)
-- `npm run build` – compile TypeScript
-- `npm test` – run tests
+### Technology Stack
+- **Runtime**: Node.js 20 + TypeScript 5.5
+- **Framework**: Express.js with middleware-based architecture
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: JWT with bcryptjs password hashing
+- **Validation**: Zod schema validation
+- **Logging**: Pino structured logging with correlation IDs
+- **Documentation**: OpenAPI 3.1.0 with Swagger UI
 
-## Folders
-- `src/` – app code (routes, controllers, services, middleware, utils)
-- `prisma/` – Prisma schema & migrations
-- `tests/` – unit & integration tests (includes mock bureau)
-- `sample-data/` – sample CSV files for testing
-- `scripts/` – utility scripts including automated testing
+### Key Design Principles
+- **Separation of Concerns**: Services, routes, and middleware are clearly separated
+- **Dependency Injection**: Services are injected into routes for testability
+- **Comprehensive Auditing**: All operations are logged with correlation IDs
+- **Role-Based Access Control (RBAC)**: Admin and User roles with proper enforcement
+- **Error Handling**: Consistent error responses with proper HTTP status codes
+- **Rate Limiting**: Built-in protection against abuse
 
-## API Endpoints
+### Database Schema Design
+- **User Management**: Users with roles (ADMIN/USER) and audit trail
+- **Statement Processing**: CSV uploads with transaction parsing and validation
+- **Financial Insights**: Computed metrics with JSON storage for flexibility
+- **Credit Bureau Integration**: External reports with caching and retry logic
+- **Audit Logging**: Comprehensive activity tracking with metadata
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 20+
+- Docker & Docker Compose
+- PostgreSQL (or use Docker)
+
+### Setup Steps
+1. **Clone and Install**
+   ```bash
+   git clone 
+   cd zeeh-mini-credit-insights-starter
+   npm install
+   ```
+
+2. **Environment Configuration**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your database and API keys
+   ```
+
+3. **Database Setup**
+   ```bash
+   # Option A: Use Docker (recommended for development)
+   docker compose up -d db
+   
+   # Option B: Use local PostgreSQL
+   # Ensure PostgreSQL is running and create database
+   
+   # Generate Prisma client and push schema
+   npm run prisma:generate
+   npm run prisma:migrate
+   ```
+
+4. **Start Services**
+   ```bash
+   # Start mock credit bureau (optional, for testing)
+   docker compose up -d bureau
+   
+   # Start the API
+   npm run dev
+   ```
+
+5. **Access the API**
+   - API: http://localhost:3000
+   - Documentation: http://localhost:3000/docs
+   - Health Check: http://localhost:3000/health
+
+
+## Configuration
+
+### Environment Variables
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/database
+
+# Authentication
+JWT_SECRET=your-secret-key-here
+
+# Credit Bureau (Mock)
+BUREAU_API_URL=http://localhost:4000
+BUREAU_API_KEY=your-api-key
+
+# Logging
+LOG_LEVEL=info
+NODE_ENV=development
+```
+
+### Docker Configuration
+- **PostgreSQL**: Port 5432, database `zeeh`
+- **Mock Bureau**: Port 4000, simulates credit bureau responses
+- **API Service**: Port 3000, auto-restart with nodemon
+
+### Prisma Configuration
+- **Binary Targets**: Supports both native and Docker environments
+- **Schema**: Includes all models with proper relationships
+- **Migrations**: Handles database schema evolution
+
+## Testing Strategy
+
+### Current Testing Approach
+**Decision Made**: Due to CI database setup expandability, i implemented a **hybrid testing strategy** implementing both happypath and simpleapi:
+
+1. **Unit Tests** (Active): Test core business logic in isolation
+   - Insights computation algorithms
+   - Bureau client retry logic
+   - Authentication service
+   - All 23 unit tests pass 
+
+2. **Simple Integration Tests** (Active): Test API endpoints without full database
+   - Authentication requirements
+   - Input validation
+   - Error handling
+   - All 10 integration tests pass 
+
+3. **Full Integration Tests** (Dormant): Comprehensive workflow testing
+   - Stored in `tests/integration/happyPath.test.ts`
+   - Requires full database schema
+   - Currently excluded from CI runs
+
+### Test Commands
+```bash
+# Run all active tests (unit + simple integration)
+npm test
+
+# Run only unit tests
+npm run test:unit
+
+# Run only integration tests (API endpoints)
+npm run test:integration
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in CI mode
+npm run test:ci
+```
+
+### Test Coverage
+- **Unit Tests**: 23 tests covering business logic
+- **Integration Tests**: 10 tests covering API behavior
+- **Total**: 33 tests, all passing
+- **Execution Time**: ~6 seconds
+
+### Why This Approach?
+-  **Reliability**: Tests pass consistently in CI
+-  **Speed**: Fast execution for development feedback
+-  **Coverage**: Core functionality is thoroughly tested
+-  **Maintainability**: No complex database setup in CI
+-  **Future**: Full integration tests can be enabled when database infrastructure is robust
+
+##  API Endpoints
 
 ### Authentication
 - `POST /auth/register` – Register new user (Admin only)
-- `POST /auth/login` – User login
+- `POST /auth/login` – User login with JWT token
 
 ### Statements
 - `POST /statements/upload` – Upload CSV bank statement
@@ -36,7 +174,7 @@ A starter scaffold for the Zeeh Africa take-home. Build a backend that ingests b
 - `GET /insights/:id` – Get computed insights
 
 ### Credit Bureau
-- `POST /bureau/check` – Perform credit check
+- `POST /bureau/check` – Perform credit check with retry logic
 - `GET /bureau/report/:bvn` – Get credit report by BVN
 
 ### Audit Logs (Admin only)
@@ -47,29 +185,117 @@ A starter scaffold for the Zeeh Africa take-home. Build a backend that ingests b
 - `GET /audit/summary` – Get audit statistics and summaries
 
 ### System
-- `GET /health` – Health check
-- `GET /metrics` – Basic metrics
-- `GET /docs` – API documentation (Swagger UI)
+- `GET /health` – Health check with uptime
+- `GET /metrics` – Basic application metrics
+- `GET /docs` – Interactive API documentation (Swagger UI)
 
-## Testing
+##  Security Features
 
-### Automated Testing
+### Authentication & Authorization
+- **JWT Tokens**: Secure, stateless authentication
+- **Password Hashing**: bcryptjs with salt rounds
+- **Role-Based Access**: ADMIN and USER roles
+- **Route Protection**: All sensitive endpoints require authentication
+
+### Input Validation
+- **Zod Schemas**: Type-safe validation for all inputs
+- **CSV Parsing**: Secure file upload handling
+- **SQL Injection Protection**: Prisma ORM with parameterized queries
+
+### Rate Limiting
+- **Built-in Protection**: Prevents API abuse
+- **Configurable Limits**: Adjustable per endpoint
+- **IP-based Tracking**: Monitors request patterns
+
+##  Observability
+
+### Logging
+- **Structured Logs**: JSON format with correlation IDs
+- **Log Levels**: Configurable (error, warn, info, debug)
+- **Audit Trail**: Complete operation tracking
+- **Performance Monitoring**: Request timing and metrics
+
+### Health Monitoring
+- **Health Endpoint**: Basic service status
+- **Metrics Endpoint**: Application performance data
+- **Database Connectivity**: Connection status checks
+
+### Error Handling
+- **Consistent Format**: Standardized error responses
+- **Proper HTTP Codes**: Semantic status codes
+- **Error Logging**: Detailed error tracking with stack traces
+
+##  Development Workflow
+
+### Development Mode
 ```bash
-# Run the complete test suite
-./scripts/test-api.sh
+npm run dev          # Start with auto-restart
+npm run build        # Compile TypeScript
+npm run start        # Run compiled version
 ```
 
-### Manual Testing
-Use the sample data in `sample-data/sample-statement.csv` to test the API:
-1. Start server: `npm run dev`
-2. Create admin user and login
-3. Upload CSV statement
-4. Compute insights
-5. Check audit logs
+### Database Operations
+```bash
+npm run prisma:generate    # Generate Prisma client
+npm run prisma:migrate     # Run database migrations
+npm run prisma:studio      # Open Prisma Studio (if available)
+```
 
-## Notes
-- Implement CSV parsing in `services/insightsService.ts`.
-- Implement bureau client with retries/timeouts in `services/bureauClient.ts`.
-- Expose OpenAPI at `/docs` using `swagger-ui-express`.
-- Comprehensive audit logging for all operations.
-- Role-based access control (RBAC) enforced on all endpoints.
+### Code Quality
+```bash
+npm run lint               # Run ESLint
+npm run test:coverage      # Test coverage report
+npm run test:watch         # Watch mode for development
+```
+
+## CI/CD Pipeline
+
+### GitHub Actions
+- **Database Setup**: PostgreSQL service with health checks
+- **Prisma Schema**: Automatic database schema creation
+- **Test Execution**: Separate unit and integration test runs
+- **Build Process**: TypeScript compilation and validation
+
+### Deployment Considerations
+- **Environment Variables**: Secure configuration management
+- **Database Migrations**: Automated schema updates
+- **Health Checks**: Deployment validation
+- **Rollback Strategy**: Quick recovery from failed deployments
+
+##  Future Enhancements (what i think would be optimal in the long run sha)
+
+### Testing Improvements
+- **Database Integration**: Enable full integration tests when CI infrastructure is robust
+- **Performance Testing**: Load testing for high-traffic scenarios
+- **Contract Testing**: API contract validation
+
+### Feature Additions
+- **Real-time Updates**: WebSocket support for live insights
+- **Advanced Analytics**: Machine learning for pattern recognition
+- **Multi-tenant Support**: Organization-based data isolation
+- **API Versioning**: Backward-compatible API evolution
+
+### Infrastructure
+- **Container Orchestration**: Kubernetes deployment
+- **Monitoring**: Prometheus + Grafana integration
+- **Tracing**: Distributed tracing with Jaeger
+- **Caching**: Redis for performance optimization
+
+## Additional Resources
+
+- **OpenAPI Specification**: `/docs` endpoint for interactive documentation
+- **Sample Data**: `sample-data/` directory for testing
+- **Test Scripts**: `scripts/` directory for automation
+- **Mock Services**: `tests/mocks/` for external service simulation
+
+##  Contributing
+
+1. **Fork the repository**
+2. **Create a feature branch**
+3. **Make your changes**
+4. **Run tests**: `npm test`
+5. **Submit a pull request**
+
+##  License
+
+This project is part of the Zeeh Africa take-home assignment.

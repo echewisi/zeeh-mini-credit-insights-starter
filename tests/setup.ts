@@ -18,5 +18,3 @@ if (process.env.SUPPRESS_LOGS === 'true') {
 }
 
 process.env.LOG_LEVEL = 'error';
-
-

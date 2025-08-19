@@ -37,7 +37,8 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npx prisma generate
-      - run: npx prisma db push
-      - run: sleep 5
+      - run: npx prisma db push --force-reset
+      - run: sleep 15
       - run: npm run build --if-present
-      - run: npm test
+      - run: npm run test:unit
+      - run: npm run test:integration

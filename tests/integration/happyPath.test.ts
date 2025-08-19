@@ -23,6 +23,30 @@ describe('Credit Insights API - Happy Path Integration', () => {
     testBVN: '12345678901'
   };
 
+  // Helper function to create admin user and get token
+  const createAdminUser = async () => {
+    const passwordHash = await bcrypt.hash('password123', 12);
+    const adminUser = await prisma.user.create({
+      data: {
+        email: 'admin@test.com',
+        passwordHash,
+        role: 'ADMIN'
+      }
+    });
+
+    const loginResponse = await request(app)
+      .post('/auth/login')
+      .send({
+        email: 'admin@test.com',
+        password: 'password123'
+      });
+
+    return {
+      user: adminUser,
+      token: loginResponse.body.token
+    };
+  };
+
   beforeAll(async () => {
     app = createServer();
     
@@ -40,37 +64,23 @@ describe('Credit Insights API - Happy Path Integration', () => {
     }
   });
 
+
+
   afterAll(async () => {
     await prisma.$disconnect();
   });
 
   describe('Complete Workflow', () => {
     it('should complete the entire credit insights workflow', async () => {
-      // Step 1: Create admin user directly in database (bypass auth for first admin)
-      const passwordHash = await bcrypt.hash('password123', 12);
-      const adminUser = await prisma.user.create({
-        data: {
-          email: 'admin@test.com',
-          passwordHash,
-          role: 'ADMIN'
-        }
-      });
-
+      // Step 1: Create admin user and get token
+      const { user: adminUser, token } = await createAdminUser();
+      
       expect(adminUser).toBeDefined();
       expect(adminUser.role).toBe('ADMIN');
+      expect(token).toBeDefined();
 
-      // Step 2: Login as admin
-      const loginResponse = await request(app)
-        .post('/auth/login')
-        .send({
-          email: 'admin@test.com',
-          password: 'password123'
-        });
-
-      expect(loginResponse.status).toBe(200);
-      expect(loginResponse.body.token).toBeDefined();
-      adminToken = loginResponse.body.token;
-      userId = loginResponse.body.user.id;
+      adminToken = token;
+      userId = adminUser.id;
 
       // Step 3: Upload CSV statement
       const csvContent = `date,description,amount,balance
@@ -86,7 +96,7 @@ describe('Credit Insights API - Happy Path Integration', () => {
         .field('sourceLabel', 'Test Statement')
         .attach('csv', Buffer.from(csvContent), 'test-statement.csv');
 
-      expect(uploadResponse.status).toBe(200);
+      expect(uploadResponse.status).toBe(201);
       expect(uploadResponse.body.statement).toBeDefined();
       expect(uploadResponse.body.transactions).toHaveLength(5);
       statementId = uploadResponse.body.statement.id;
@@ -124,7 +134,6 @@ describe('Credit Insights API - Happy Path Integration', () => {
       expect(bureauResponse.body.report.bvn).toBe('12345678901');
       bureauReportId = bureauResponse.body.report.id;
 
-      // Step 7: Retrieve bureau report
       const getBureauResponse = await request(app)
         .get(`/bureau/report/12345678901`)
         .set('Authorization', `Bearer ${adminToken}`);
@@ -133,7 +142,6 @@ describe('Credit Insights API - Happy Path Integration', () => {
       expect(getBureauResponse.body.report).toBeDefined();
       expect(getBureauResponse.body.report.id).toBe(bureauReportId);
 
-      // Step 8: Verify audit logs were created
       const auditLogsResponse = await request(app)
         .get('/audit/logs')
         .set('Authorization', `Bearer ${adminToken}`);
@@ -154,11 +162,24 @@ describe('Credit Insights API - Happy Path Integration', () => {
 
   describe('Data Validation', () => {
     it('should validate CSV parsing accuracy', async () => {
-      // Skip if main workflow didn't complete
-      if (!statementId) {
-        console.log('Skipping CSV validation - statementId not available');
-        return;
-      }
+      // Create admin user and upload statement for this test
+      const { token } = await createAdminUser();
+      
+      const csvContent = `date,description,amount,balance
+2024-01-01,Salary Payment - ABC Corp,500000,500000
+2024-01-02,Grocery Store - Walmart,-25000,475000
+2024-01-03,Uber Ride - Transport,-1500,473500
+2024-01-04,Amazon Shopping - Electronics,-45000,428500
+2024-01-05,Restaurant - Fine Dining,-8000,420500`;
+
+      const uploadResponse = await request(app)
+        .post('/statements/upload')
+        .set('Authorization', `Bearer ${token}`)
+        .field('sourceLabel', 'Test Statement')
+        .attach('csv', Buffer.from(csvContent), 'test-statement.csv');
+
+      expect(uploadResponse.status).toBe(201);
+      const statementId = uploadResponse.body.statement.id;
 
       const statement = await prisma.statement.findUnique({
         where: { id: statementId }
@@ -180,51 +201,61 @@ describe('Credit Insights API - Happy Path Integration', () => {
       expect(salaryTx?.amount).toBe(500000);
       expect(salaryTx?.description).toContain('Salary');
 
-      // Verify expense transactions
       const expenses = transactions.filter(t => t.amount < 0);
       expect(expenses).toHaveLength(4);
       expect(expenses.reduce((sum, t) => sum + Math.abs(t.amount), 0)).toBe(78000);
     });
 
     it('should validate insights computation accuracy', async () => {
-      // Skip if main workflow didn't complete
-      if (!insightId) {
-        console.log('Skipping insights validation - insightId not available');
-        return;
-      }
+      const { token } = await createAdminUser();
+      
+      const csvContent = `date,description,amount,balance
+2024-01-01,Salary Payment - ABC Corp,500000,500000
+2024-01-02,Grocery Store - Walmart,-25000,475000`;
 
-      const insight = await prisma.insight.findUnique({
-        where: { id: insightId }
-      });
+      const uploadResponse = await request(app)
+        .post('/statements/upload')
+        .set('Authorization', `Bearer ${token}`)
+        .field('sourceLabel', 'Test Statement')
+        .attach('csv', Buffer.from(csvContent), 'test-statement.csv');
+
+      const statementId = uploadResponse.body.statement.id;
+
+      const insightsResponse = await request(app)
+        .post('/insights/run')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ statementId });
+
+      expect(insightsResponse.status).toBe(200);
+      const insight = insightsResponse.body.insight;
 
       expect(insight).toBeDefined();
-      expect(insight?.monthlyIncomeAvg).toBe(500000); // Single month
-      expect(insight?.inflow3m).toBe(500000); // Single salary payment
-      expect(insight?.outflow3m).toBe(78000); // Total expenses
-      expect(insight?.net3m).toBe(422000); // 500000 - 78000
+      expect(insight?.monthlyIncomeAvg).toBe(500000); 
+      expect(insight?.inflow3m).toBe(500000); 
+      expect(insight?.outflow3m).toBe(25000); 
+      expect(insight?.net3m).toBe(475000); 
 
       // Verify spend breakdown
-      const spendBreakdown = insight?.spendBreakdownJson as any[];
+      const spendBreakdown = insight?.spendBreakdown;
       expect(spendBreakdown).toBeDefined();
-      expect(spendBreakdown.length).toBeGreaterThan(0);
+      expect(typeof spendBreakdown).toBe('object');
 
-      // Verify risk flags
-      const riskFlags = insight?.riskFlagsJson as any;
+      const riskFlags = insight?.riskFlags;
       expect(riskFlags).toBeDefined();
       expect(typeof riskFlags.highSpending).toBe('boolean');
       expect(typeof riskFlags.negativeBalance).toBe('boolean');
     });
 
     it('should validate bureau report persistence', async () => {
-      // Skip if main workflow didn't complete
-      if (!bureauReportId) {
-        console.log('Skipping bureau validation - bureauReportId not available');
-        return;
-      }
+      const { token } = await createAdminUser();
+      
+      const bureauResponse = await request(app)
+        .post('/bureau/check')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ bvn: '12345678901' });
 
-      const bureauReport = await prisma.bureauReport.findUnique({
-        where: { id: bureauReportId }
-      });
+      expect(bureauResponse.status).toBe(200);
+      const bureauReport = bureauResponse.body.report;
 
       expect(bureauReport).toBeDefined();
       expect(bureauReport?.bvn).toBe('12345678901');
@@ -238,31 +269,33 @@ describe('Credit Insights API - Happy Path Integration', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid statement ID gracefully', async () => {
-      // Skip if admin token not available
-      if (!adminToken) {
-        console.log('Skipping invalid statement test - adminToken not available');
-        return;
+      // Create admin user if not available
+      let token = adminToken;
+      if (!token) {
+        const { token: newToken } = await createAdminUser();
+        token = newToken;
       }
 
       const response = await request(app)
         .post('/insights/run')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Authorization', `Bearer ${token}`)
         .send({ statementId: 'invalid-id' });
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(404);
       expect(response.body.error).toBeDefined();
     });
 
     it('should handle invalid BVN format', async () => {
-      // Skip if admin token not available
-      if (!adminToken) {
-        console.log('Skipping invalid BVN test - adminToken not available');
-        return;
+      // Create admin user if not available
+      let token = adminToken;
+      if (!token) {
+        const { token: newToken } = await createAdminUser();
+        token = newToken;
       }
 
       const response = await request(app)
         .post('/bureau/check')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Authorization', `Bearer ${token}`)
         .send({ bvn: '123' }); // Too short
 
       expect(response.status).toBe(400);
@@ -277,16 +310,17 @@ describe('Credit Insights API - Happy Path Integration', () => {
     });
 
     it('should enforce role-based access control', async () => {
-      // Skip if admin token not available
-      if (!adminToken) {
-        console.log('Skipping RBAC test - adminToken not available');
-        return;
+      // Create admin user if not available
+      let token = adminToken;
+      if (!token) {
+        const { token: newToken } = await createAdminUser();
+        token = newToken;
       }
 
       // Create a regular user
       const regularUserResponse = await request(app)
         .post('/auth/register')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Authorization', `Bearer ${token}`)
         .send({
           email: 'user@test.com',
           password: 'password123',

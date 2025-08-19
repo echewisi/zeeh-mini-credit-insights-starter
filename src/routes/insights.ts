@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import pino from 'pino';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
 import { InsightsService } from '../services/insightsService';
+
+const logger = pino({ name: 'insights-routes' });
 
 export const insightsRouter = Router();
 
@@ -35,7 +38,13 @@ insightsRouter.post('/run', authenticateToken, requireRole('USER'), async (req: 
       }
     });
   } catch (error: unknown) {
-    console.error('Insights computation error:', error);
+    logger.error({
+      msg: 'Insights computation error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId,
+      statementId: req.body.statementId
+    });
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.errors });
@@ -78,7 +87,13 @@ insightsRouter.get('/:id', authenticateToken, requireRole('USER'), async (req: A
       }
     });
   } catch (error: unknown) {
-    console.error('Insights retrieval error:', error);
+    logger.error({
+      msg: 'Insights retrieval error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId,
+      insightsId: req.params.id
+    });
     res.status(500).json({ error: 'Failed to retrieve insights' });
   }
 });

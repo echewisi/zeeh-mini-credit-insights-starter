@@ -1,10 +1,12 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import pino from 'pino';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+const logger = pino({ name: 'audit-routes' });
 
 export const auditRouter = Router();
 
@@ -98,7 +100,13 @@ auditRouter.get('/logs', authenticateToken, requireRole('ADMIN'), async (req: Au
       }
     });
   } catch (error: unknown) {
-    console.error('Audit logs retrieval error:', error);
+    logger.error({
+      msg: 'Audit logs retrieval error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId,
+      query: req.query
+    });
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid query parameters', details: error.errors });
@@ -142,7 +150,13 @@ auditRouter.get('/logs/:id', authenticateToken, requireRole('ADMIN'), async (req
       }
     });
   } catch (error: unknown) {
-    console.error('Audit log retrieval error:', error);
+    logger.error({
+      msg: 'Audit log retrieval error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId,
+      auditLogId: req.params.id
+    });
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid audit log ID', details: error.errors });
@@ -165,7 +179,12 @@ auditRouter.get('/actions', authenticateToken, requireRole('ADMIN'), async (req:
       data: actions.map(item => item.action)
     });
   } catch (error: unknown) {
-    console.error('Audit actions retrieval error:', error);
+    logger.error({
+      msg: 'Audit actions retrieval error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId
+    });
     res.status(500).json({ error: 'Failed to retrieve audit actions' });
   }
 });
@@ -184,7 +203,12 @@ auditRouter.get('/target-types', authenticateToken, requireRole('ADMIN'), async 
       data: targetTypes.map(item => item.targetType).filter(Boolean)
     });
   } catch (error: unknown) {
-    console.error('Audit target types retrieval error:', error);
+    logger.error({
+      msg: 'Audit target types retrieval error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId
+    });
     res.status(500).json({ error: 'Failed to retrieve audit target types' });
   }
 });
@@ -249,7 +273,12 @@ auditRouter.get('/summary', authenticateToken, requireRole('ADMIN'), async (req:
       }
     });
   } catch (error: unknown) {
-    console.error('Audit summary retrieval error:', error);
+    logger.error({
+      msg: 'Audit summary retrieval error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId
+    });
     res.status(500).json({ error: 'Failed to retrieve audit summary' });
   }
 });

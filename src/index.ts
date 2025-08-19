@@ -10,7 +10,6 @@ const server = app.listen(port, () => {
   console.log(`Metrics available at http://localhost:${port}/metrics`);
 });
 
-// Graceful shutdown handling
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');
   server.close(() => {
@@ -27,7 +26,6 @@ process.on('SIGINT', () => {
   });
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
   process.exit(1);

@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import pino from 'pino';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
 import { StatementService } from '../services/statementService';
 import { upload } from '../utils/upload';
 
+const logger = pino({ name: 'statements-routes' });
 
 export const statementsRouter = Router();
-
 
 const uploadSchema = z.object({
   sourceLabel: z.string().optional()
@@ -48,7 +49,13 @@ statementsRouter.post('/upload',
       });
 
     } catch (error) {
-      console.error('Statement upload error:', error);
+      logger.error({
+        msg: 'Statement upload error',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: req.user?.userId,
+        filename: req.file?.originalname
+      });
       
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Invalid request data', details: error.errors });
@@ -95,7 +102,13 @@ statementsRouter.get('/:id',
       });
 
     } catch (error) {
-      console.error('Statement retrieval error:', error);
+      logger.error({
+        msg: 'Statement retrieval error',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: req.user?.userId,
+        statementId: req.params.id
+      });
       res.status(500).json({ error: 'Failed to retrieve statement' });
     }
   }

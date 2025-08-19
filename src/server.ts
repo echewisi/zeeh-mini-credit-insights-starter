@@ -38,21 +38,17 @@ export function createServer() {
   }));
   
   app.get('/metrics', (_req, res) => {
-    // Simple placeholder metrics; integrate prom-client for full metrics if needed
     res.type('text/plain').send('up 1\nrequests_total 0');
   });
 
-  // API routes
   app.use('/auth', authRouter);
   app.use('/statements', statementsRouter);
   app.use('/insights', insightsRouter);
   app.use('/bureau', bureauRouter);
   app.use('/audit', auditRouter);
 
-  // Mount Swagger documentation
   mountSwagger(app);
 
-  // 404 handler for undefined routes
   app.use('*', (req, res) => {
     res.status(404).json({ 
       error: 'Route not found', 
@@ -61,7 +57,6 @@ export function createServer() {
     });
   });
 
-  // Global error handler
   app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     logger.error('Unhandled error:', error);
     res.status(500).json({ 

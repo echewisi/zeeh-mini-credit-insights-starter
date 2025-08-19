@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { AuthService } from '../services/authService';
-import { requireRole } from '../middleware/auth';
-import { authenticateToken } from '../middleware/auth';
+import pino from 'pino';
+import { AuthService } from '../services/authService.js';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
+import { requireRole } from '../middleware/auth.js';
+
+const logger = pino({ name: 'auth-routes' });
 
 export const authRouter = Router();
 
@@ -17,67 +20,73 @@ const loginSchema = z.object({
   password: z.string()
 });
 
+// POST /auth/register - Register a new user (ADMIN only)
 authRouter.post('/register', authenticateToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
-    const data = registerSchema.parse(req.body);
-    const user = await AuthService.register({
-      ...data,
-      role: data.role || 'USER'
-    });
+    const { email, password, role } = registerSchema.parse(req.body);
+    
+    const user = await AuthService.register({ email, password, role: role || 'USER' });
     
     res.status(201).json({
-      message: 'User created successfully',
+      message: 'User registered successfully',
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
-        createdAt: user.createdAt
+        role: user.role
       }
     });
   } catch (error: unknown) {
-    console.error('Registration error:', error);
+    logger.error({
+      msg: 'Registration error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      email: req.body.email
+    });
     
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
     
-    if (error instanceof Error) {
-      if (error.message === 'User already exists') {
-        return res.status(409).json({ error: error.message });
-      }
+    if (error instanceof Error && error.message.includes('already exists')) {
+      return res.status(409).json({ error: 'User already exists' });
     }
     
-    res.status(500).json({ error: 'Failed to create user' });
+    res.status(500).json({ error: 'Failed to register user' });
   }
 });
 
+// POST /auth/login - Login user
 authRouter.post('/login', async (req: Request, res: Response) => {
   try {
-    const data = loginSchema.parse(req.body);
-    const result = await AuthService.login(data);
+    const { email, password } = loginSchema.parse(req.body);
+    
+    const result = await AuthService.login({ email, password });
     
     res.json({
       message: 'Login successful',
+      token: result.token,
       user: {
         id: result.user.id,
         email: result.user.email,
         role: result.user.role
-      },
-      token: result.token
+      }
     });
   } catch (error: unknown) {
-    console.error('Login error:', error);
+    logger.error({
+      msg: 'Login error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      email: req.body.email
+    });
     
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
     
-    if (error instanceof Error) {
-      if (error.message === 'Invalid credentials') {
-        return res.status(401).json({ error: error.message });
-      }
+    if (error instanceof Error && error.message.includes('Invalid credentials')) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    res.status(500).json({ error: 'Failed to authenticate' });
+    res.status(500).json({ error: 'Failed to login' });
   }
 });

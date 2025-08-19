@@ -1,13 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import pino from 'pino';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
 import { BureauClient } from '../services/bureauClient';
 
+const logger = pino({ name: 'bureau-routes' });
+
 export const bureauRouter = Router();
 
 const checkCreditSchema = z.object({
-  bvn: z.string().min(10).max(11)
+  bvn: z.string().min(11).max(11)
 });
 
 bureauRouter.post('/check', authenticateToken, requireRole('USER'), async (req: AuthenticatedRequest, res: Response) => {
@@ -31,7 +34,13 @@ bureauRouter.post('/check', authenticateToken, requireRole('USER'), async (req: 
       }
     });
   } catch (error: unknown) {
-    console.error('Bureau check error:', error);
+    logger.error({
+      msg: 'Bureau check error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId,
+      bvn: req.body.bvn
+    });
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.errors });
@@ -57,7 +66,7 @@ bureauRouter.get('/report/:bvn', authenticateToken, requireRole('USER'), async (
   try {
     const { bvn } = req.params;
     
-    if (!bvn || bvn.length < 10 || bvn.length > 11) {
+    if (!bvn || bvn.length < 11 || bvn.length > 11) {
       return res.status(400).json({ error: 'Invalid BVN format' });
     }
     
@@ -81,7 +90,13 @@ bureauRouter.get('/report/:bvn', authenticateToken, requireRole('USER'), async (
       }
     });
   } catch (error: unknown) {
-    console.error('Report retrieval error:', error);
+    logger.error({
+      msg: 'Report retrieval error',
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.userId,
+      bvn: req.params.bvn
+    });
     res.status(500).json({ error: 'Failed to retrieve credit report' });
   }
 });

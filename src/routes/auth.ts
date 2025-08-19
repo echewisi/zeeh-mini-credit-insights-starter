@@ -21,7 +21,7 @@ const loginSchema = z.object({
 });
 
 // POST /auth/register - Register a new user (ADMIN only)
-authRouter.post('/register', authenticateToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
+authRouter.post('/register', requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const { email, password, role } = registerSchema.parse(req.body);
     

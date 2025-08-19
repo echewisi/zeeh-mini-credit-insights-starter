@@ -1,131 +1,831 @@
 openapi: 3.1.0
 info:
   title: Mini Credit Insights API
+  description: A backend service for credit insights that ingests CSV bank statements, computes financial insights, and integrates with credit bureaus.
   version: 0.1.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3003
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "clx1234567890abcdef"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        role:
+          type: string
+          enum: [USER, ADMIN]
+          example: "USER"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          minLength: 8
+          example: "password123"
+
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Login successful"
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "newuser@example.com"
+        password:
+          type: string
+          minLength: 8
+          example: "securepassword123"
+        role:
+          type: string
+          enum: [USER, ADMIN]
+          default: USER
+          example: "USER"
+
+    Statement:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "stmt_1234567890abcdef"
+        sourceLabel:
+          type: string
+          example: "GTBank Statement"
+        uploadedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        rowCount:
+          type: integer
+          example: 150
+        parseSuccessRate:
+          type: number
+          format: float
+          example: 95.5
+        transactionCount:
+          type: integer
+          example: 143
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "txn_1234567890abcdef"
+        date:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        description:
+          type: string
+          example: "Salary Payment"
+        amount:
+          type: number
+          format: float
+          example: 50000.00
+        balance:
+          type: number
+          format: float
+          example: 125000.00
+
+    Insight:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "insight_1234567890abcdef"
+        statementId:
+          type: string
+          example: "stmt_1234567890abcdef"
+        monthlyIncomeAvg:
+          type: number
+          format: float
+          example: 45000.00
+        inflow3m:
+          type: number
+          format: float
+          example: 135000.00
+        outflow3m:
+          type: number
+          format: float
+          example: 85000.00
+        net3m:
+          type: number
+          format: float
+          example: 50000.00
+        spendBreakdown:
+          type: object
+          description: "Spend breakdown by category with percentages"
+          example: "{\"Food & Dining\": 25.5, \"Transportation\": 15.2, \"Shopping\": 20.1}"
+        riskFlags:
+          type: object
+          example:
+            highSpending: false
+            negativeBalance: false
+            irregularIncome: false
+            largeTransactions: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    BureauReport:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "bureau_1234567890abcdef"
+        bvn:
+          type: string
+          example: "12345678901"
+        personName:
+          type: string
+          example: "John Doe"
+        dob:
+          type: string
+          example: "1990-05-15"
+        score:
+          type: integer
+          example: 750
+        riskBand:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+          example: "LOW"
+        enquiries6m:
+          type: integer
+          example: 2
+        defaults:
+          type: integer
+          example: 0
+        openLoans:
+          type: integer
+          example: 1
+        tradeLines:
+          type: array
+          items:
+            type: object
+          example: []
+        requestedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "audit_1234567890abcdef"
+        action:
+          type: string
+          example: "USER_LOGIN"
+        targetType:
+          type: string
+          example: "User"
+        targetId:
+          type: string
+          example: "user_1234567890abcdef"
+        actorUser:
+          $ref: '#/components/schemas/User'
+        meta:
+          type: object
+          example:
+            email: "user@example.com"
+            role: "USER"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid request data"
+        details:
+          type: array
+          items:
+            type: object
+          example:
+            - field: "email"
+              message: "Invalid email format"
+
 paths:
   /health:
     get:
-      summary: Liveness check
+      summary: Health check endpoint
+      description: Returns the health status of the API
+      tags: [Health]
       responses:
         '200':
-          description: OK
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00Z"
+                  uptime:
+                    type: number
+                    example: 3600.5
+
   /auth/register:
     post:
-      summary: Register user
+      summary: Register a new user
+      description: Create a new user account (ADMIN only)
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: "newuser@example.com"
+              password: "securepassword123"
+              role: "USER"
       responses:
         '201':
-          description: Created
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User registered successfully"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: User already exists
+
   /auth/login:
     post:
-      summary: Login
+      summary: Login user
+      description: Authenticate user and return JWT token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "user@example.com"
+              password: "password123"
       responses:
         '200':
-          description: OK
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid credentials
+
   /statements/upload:
     post:
-      summary: Upload CSV statement
+      summary: Upload CSV bank statement
+      description: Upload and parse a CSV bank statement file
+      tags: [Statements]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                csv:
+                  type: string
+                  format: binary
+                  description: "CSV file with columns: date, description, amount, balance"
+                sourceLabel:
+                  type: string
+                  example: "GTBank Statement"
+                  description: Optional label for the statement source
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Statement uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Statement uploaded successfully"
+                  statement:
+                    $ref: '#/components/schemas/Statement'
+                  transactionCount:
+                    type: integer
+                    example: 143
+        '400':
+          description: Invalid file or data
+        '401':
+          description: Unauthorized
+
   /statements/{id}:
     get:
-      summary: Get statement by id
+      summary: Get statement by ID
+      description: Retrieve a specific statement with its transactions
+      tags: [Statements]
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+          example: "stmt_1234567890abcdef"
+          description: Statement ID
       responses:
         '200':
-          description: OK
+          description: Statement retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statement:
+                    $ref: '#/components/schemas/Statement'
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Statement not found
+
   /insights/run:
     post:
-      summary: Run insights on a statement
+      summary: Compute insights for a statement
+      description: Run financial insights computation on a statement
+      tags: [Insights]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - statementId
+              properties:
+                statementId:
+                  type: string
+                  example: "stmt_1234567890abcdef"
+                  description: ID of the statement to analyze
+            example:
+              statementId: "stmt_1234567890abcdef"
       responses:
         '200':
-          description: OK
+          description: Insights computed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Insights computed successfully"
+                  insight:
+                    $ref: '#/components/schemas/Insight'
+        '400':
+          description: Invalid input data
+        '401':
+          description: Unauthorized
+        '404':
+          description: Statement not found
+
   /insights/{id}:
     get:
-      summary: Get insights by id
+      summary: Get insights by ID
+      description: Retrieve computed insights for a specific statement
+      tags: [Insights]
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+          example: "insight_1234567890abcdef"
+          description: Insight ID
       responses:
         '200':
-          description: OK
+          description: Insights retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  insight:
+                    $ref: '#/components/schemas/Insight'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Insights not found
+
   /bureau/check:
     post:
-      summary: Perform a bureau check (mock)
+      summary: Perform credit bureau check
+      description: Perform a credit check with the bureau (mock implementation)
+      tags: [Bureau]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - bvn
+              properties:
+                bvn:
+                  type: string
+                  minLength: 11
+                  maxLength: 11
+                  example: "12345678901"
+                  description: Bank Verification Number
+            example:
+              bvn: "12345678901"
       responses:
         '200':
-          description: OK
+          description: Credit check completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Credit check completed successfully"
+                  report:
+                    $ref: '#/components/schemas/BureauReport'
+        '400':
+          description: Invalid BVN format
+        '401':
+          description: Unauthorized
+        '429':
+          description: Rate limited
+        '502':
+          description: Bureau service error
+
   /bureau/report/{bvn}:
     get:
       summary: Get bureau report by BVN
+      description: Retrieve an existing credit report for a BVN
+      tags: [Bureau]
+      security:
+        - bearerAuth: []
       parameters:
         - name: bvn
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+            minLength: 11
+            maxLength: 11
+          example: "12345678901"
+          description: Bank Verification Number
       responses:
         '200':
-          description: OK
+          description: Report retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report:
+                    $ref: '#/components/schemas/BureauReport'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Report not found
+
   /audit/logs:
     get:
-      summary: Get paginated audit logs with filtering
+      summary: Get paginated audit logs
+      description: Retrieve paginated audit logs with optional filtering
+      tags: [Audit]
+      security:
+        - bearerAuth: []
       parameters:
         - name: page
           in: query
-          schema: { type: integer, default: 1 }
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          example: 1
+          description: Page number
         - name: limit
           in: query
-          schema: { type: integer, default: 50, maximum: 100 }
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+            minimum: 1
+          example: 50
+          description: Number of logs per page
         - name: action
           in: query
-          schema: { type: string }
+          schema:
+            type: string
+          example: "USER_LOGIN"
+          description: Filter by action type
         - name: targetType
           in: query
-          schema: { type: string }
+          schema:
+            type: string
+          example: "User"
+          description: Filter by target type
         - name: actorUserId
           in: query
-          schema: { type: string }
+          schema:
+            type: string
+          example: "user_1234567890abcdef"
+          description: Filter by actor user ID
         - name: startDate
           in: query
-          schema: { type: string, format: date }
+          schema:
+            type: string
+            format: date
+          example: "2024-01-01"
+          description: Filter logs from this date
         - name: endDate
           in: query
-          schema: { type: string, format: date }
+          schema:
+            type: string
+            format: date
+          example: "2024-01-31"
+          description: Filter logs until this date
       responses:
         '200':
-          description: OK
+          description: Audit logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 50
+                      totalCount:
+                        type: integer
+                        example: 150
+                      totalPages:
+                        type: integer
+                        example: 3
+                      hasNext:
+                        type: boolean
+                        example: true
+                      hasPrev:
+                        type: boolean
+                        example: false
+        '401':
+          description: Unauthorized
+
   /audit/logs/{id}:
     get:
-      summary: Get specific audit log by ID
+      summary: Get specific audit log
+      description: Retrieve a specific audit log by ID
+      tags: [Audit]
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+          example: "audit_1234567890abcdef"
+          description: Audit log ID
       responses:
         '200':
-          description: OK
+          description: Audit log retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuditLog'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Audit log not found
+
   /audit/actions:
     get:
-      summary: Get list of unique audit actions
+      summary: Get unique audit actions
+      description: Retrieve list of unique audit action types
+      tags: [Audit]
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: OK
+          description: Actions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - "USER_CREATED"
+                      - "USER_LOGIN"
+                      - "STATEMENT_UPLOADED"
+                      - "INSIGHTS_COMPUTED"
+                      - "BUREAU_CREDIT_CHECK"
+        '401':
+          description: Unauthorized
+
   /audit/target-types:
     get:
-      summary: Get list of unique audit target types
+      summary: Get unique audit target types
+      description: Retrieve list of unique audit target types
+      tags: [Audit]
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: OK
+          description: Target types retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - "User"
+                      - "Statement"
+                      - "Insight"
+                      - "BureauReport"
+        '401':
+          description: Unauthorized
+
   /audit/summary:
     get:
       summary: Get audit summary statistics
+      description: Retrieve audit log summary statistics
+      tags: [Audit]
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: OK
+          description: Summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      totalLogs:
+                        type: integer
+                        example: 1250
+                      todayLogs:
+                        type: integer
+                        example: 45
+                      yesterdayLogs:
+                        type: integer
+                        example: 38
+                      last7DaysLogs:
+                        type: integer
+                        example: 245
+                      last30DaysLogs:
+                        type: integer
+                        example: 890
+                      topActions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            action:
+                              type: string
+                              example: "USER_LOGIN"
+                            count:
+                              type: integer
+                              example: 450
+                      topTargetTypes:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            targetType:
+                              type: string
+                              example: "User"
+                            count:
+                              type: integer
+                              example: 320
+        '401':
+          description: Unauthorized
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Authentication
+    description: User authentication and registration
+  - name: Statements
+    description: Bank statement upload and management
+  - name: Insights
+    description: Financial insights computation
+  - name: Bureau
+    description: Credit bureau integration
+  - name: Audit
+    description: Audit logging and monitoring

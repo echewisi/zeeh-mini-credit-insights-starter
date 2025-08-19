@@ -2,7 +2,7 @@
 
 A starter scaffold for the Zeeh Africa take-home. Build a backend that ingests bank statements (CSV), computes insights, and integrates with a mock credit bureau.
 
-## 🏗️ Architecture Decisions & Design Choices
+##  Architecture Decisions & Design Choices
 
 ### Technology Stack
 - **Runtime**: Node.js 20 + TypeScript 5.5
@@ -38,15 +38,15 @@ A starter scaffold for the Zeeh Africa take-home. Build a backend that ingests b
 ### Setup Steps
 1. **Clone and Install**
    ```bash
-   git clone 
-   cd zeeh-mini-credit-insights-starter
+   git clone https://github.com/echewisi/zeeh-mini-credit-insights-starter
+   <!-- cd zeeh-mini-credit-insights-starter -->
    npm install
    ```
 
 2. **Environment Configuration**
    ```bash
    cp .env.example .env
-   # Edit .env with your database and API keys
+   # put your .env with your database and API keys
    ```
 
 3. **Database Setup**
